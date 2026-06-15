@@ -874,7 +874,7 @@
     <script>
         // ===== 설정 =====
         const DEFAULT_WS_URL = 'wss://YOUR-BRIDGE-DOMAIN.example.com';
-        const LEGACY_WS_URLS = ['ws://localhost:3000', 'ws://192.168.0.90:3000', 'ws://10.59.121.144:3000'];
+        const LEGACY_WS_URLS = [];
         const savedWsUrl = localStorage.getItem('WS_URL');
         let WS_URL = (!savedWsUrl || LEGACY_WS_URLS.includes(savedWsUrl)) ? DEFAULT_WS_URL : savedWsUrl;
         

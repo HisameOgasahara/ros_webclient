@@ -26,7 +26,7 @@ GitHub Pages HTTPS UI
 
 ```text
 wss://YOUR-BRIDGE-DOMAIN.example.com
-ws://100.101.167.4:3000
+ws://YOUR-JETSON-LAN-IP:3000
 ```
 
 단, GitHub Pages에서 열린 HTTPS 페이지는 브라우저 정책상 일반 `ws://` 연결이 막힐 수 있다. 운영/시연용은 `wss://`를 우선 사용한다.
