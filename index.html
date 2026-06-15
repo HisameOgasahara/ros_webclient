@@ -61,6 +61,56 @@
             background: #22c55e;
         }
 
+        .server-panel {
+            background: #fff;
+            border: 1px solid #ddd;
+            border-radius: 12px;
+            padding: 10px;
+            margin-bottom: 16px;
+        }
+
+        .server-panel-label {
+            display: block;
+            font-size: 12px;
+            font-weight: 600;
+            color: #444;
+            margin-bottom: 6px;
+        }
+
+        .server-panel-row {
+            display: flex;
+            gap: 8px;
+        }
+
+        .server-url-input {
+            flex: 1;
+            min-width: 0;
+            border: 1px solid #ccc;
+            border-radius: 8px;
+            padding: 10px;
+            font-size: 13px;
+            font-family: monospace;
+        }
+
+        .server-connect-btn {
+            border: none;
+            border-radius: 8px;
+            background: #111;
+            color: #fff;
+            padding: 0 14px;
+            font-size: 13px;
+            font-weight: 700;
+            cursor: pointer;
+            white-space: nowrap;
+        }
+
+        .server-panel-current {
+            margin-top: 6px;
+            font-size: 11px;
+            color: #666;
+            overflow-wrap: anywhere;
+        }
+
         /* 로봇 상태 카드 */
         .robot-status-card {
             background: #111;
@@ -716,6 +766,15 @@
         </div>
     </div>
 
+    <div class="server-panel">
+        <label class="server-panel-label" for="serverUrlInput">Cloudflare WebSocket 주소</label>
+        <div class="server-panel-row">
+            <input type="text" class="server-url-input" id="serverUrlInput" placeholder="wss://example.trycloudflare.com">
+            <button class="server-connect-btn" onclick="saveServerUrl()">연결</button>
+        </div>
+        <div class="server-panel-current" id="serverCurrentText">Jetson tmux urls 창의 wss://...trycloudflare.com 주소를 입력하세요.</div>
+    </div>
+
     <!-- 로봇 상태 -->
     <div class="robot-status-card">
         <div class="robot-status-header">
@@ -847,11 +906,11 @@
     <!-- IP 변경 모달 -->
     <div class="ip-modal" id="ipModal">
         <div class="ip-modal-content">
-            <div class="ip-modal-title">🔧 서버 IP 설정</div>
-            <div class="ip-current" id="currentIpText">현재: wss://YOUR-BRIDGE-DOMAIN.example.com</div>
+            <div class="ip-modal-title">🔧 WebSocket 주소 설정</div>
+            <div class="ip-current" id="currentIpText">현재: 주소 미설정</div>
             <div class="ip-input-group">
-                <label class="ip-label">서버 주소</label>
-                <input type="text" class="ip-input" id="ipInput" placeholder="wss://YOUR-BRIDGE-DOMAIN.example.com">
+                <label class="ip-label">WebSocket 주소</label>
+                <input type="text" class="ip-input" id="ipInput" placeholder="wss://example.trycloudflare.com">
             </div>
             <div class="ip-input-group">
                 <label class="ip-label">포트</label>
@@ -874,12 +933,13 @@
     <script>
         // ===== 설정 =====
         const DEFAULT_WS_URL = 'wss://YOUR-BRIDGE-DOMAIN.example.com';
-        const LEGACY_WS_URLS = [];
+        const LEGACY_WS_URLS = [DEFAULT_WS_URL];
         const savedWsUrl = localStorage.getItem('WS_URL');
-        let WS_URL = (!savedWsUrl || LEGACY_WS_URLS.includes(savedWsUrl)) ? DEFAULT_WS_URL : savedWsUrl;
+        let WS_URL = (!savedWsUrl || LEGACY_WS_URLS.includes(savedWsUrl)) ? '' : savedWsUrl;
         
         // ===== 상태 =====
         let ws = null;
+        let reconnectTimer = null;
         let selectedDestination = null;
         let selectedItem = null;
         let orderMode = 'delivery';
@@ -925,7 +985,13 @@
         function init() {
             renderItems();
             setupMapListeners();
-            connectWebSocket();
+            updateServerUrlUI();
+            if (WS_URL) {
+                connectWebSocket();
+            } else {
+                document.getElementById('statusDot').classList.remove('connected');
+                document.getElementById('statusText').textContent = '주소 필요';
+            }
             showNotification('배송 시스템 준비 완료', 'success');
         }
 
@@ -951,6 +1017,23 @@
 
         // ===== WebSocket =====
         function connectWebSocket() {
+            if (reconnectTimer) {
+                clearTimeout(reconnectTimer);
+                reconnectTimer = null;
+            }
+
+            if (!WS_URL) {
+                document.getElementById('statusDot').classList.remove('connected');
+                document.getElementById('statusText').textContent = '주소 필요';
+                return;
+            }
+
+            if (ws && (ws.readyState === WebSocket.OPEN || ws.readyState === WebSocket.CONNECTING)) {
+                ws.close();
+            }
+
+            document.getElementById('statusDot').classList.remove('connected');
+            document.getElementById('statusText').textContent = '연결 중...';
             ws = new WebSocket(WS_URL);
 
             ws.onopen = () => {
@@ -970,7 +1053,9 @@
             ws.onclose = () => {
                 document.getElementById('statusDot').classList.remove('connected');
                 document.getElementById('statusText').textContent = '연결 끊김';
-                setTimeout(connectWebSocket, 5000);
+                if (WS_URL) {
+                    reconnectTimer = setTimeout(connectWebSocket, 5000);
+                }
             };
 
             ws.onerror = () => {
@@ -1479,6 +1564,62 @@
             setTimeout(() => notification.remove(), duration);
         }
 
+        function normalizeWebSocketUrl(rawAddress, rawPort = '') {
+            const address = rawAddress.trim();
+            const port = rawPort.trim();
+
+            if (!address) {
+                throw new Error('WebSocket 주소를 입력하세요');
+            }
+
+            if (/^wss?:\/\//.test(address)) {
+                if (!/^wss?:\/\/[a-zA-Z0-9\-\.]+(?::\d+)?(\/.*)?$/.test(address) &&
+                    !/^wss?:\/\/[\d\.]+(?::\d+)?(\/.*)?$/.test(address)) {
+                    throw new Error('ws:// 또는 wss:// 주소를 입력하세요');
+                }
+                return address;
+            }
+
+            if (!port) {
+                return `wss://${address}`;
+            }
+
+            if (!/^\d+$/.test(port) || parseInt(port) < 1 || parseInt(port) > 65535) {
+                throw new Error('올바른 포트 번호를 입력하세요 (1-65535)');
+            }
+
+            if (!/^[\d\.]+$/.test(address) && !/^[a-zA-Z0-9\-\.]+$/.test(address)) {
+                throw new Error('올바른 서버 주소를 입력하세요');
+            }
+
+            return `ws://${address}:${port}`;
+        }
+
+        function updateServerUrlUI() {
+            const input = document.getElementById('serverUrlInput');
+            const current = document.getElementById('serverCurrentText');
+            if (input) input.value = WS_URL || '';
+            if (current) {
+                current.textContent = WS_URL
+                    ? `현재: ${WS_URL}`
+                    : 'Jetson tmux urls 창의 wss://...trycloudflare.com 주소를 입력하세요.';
+            }
+        }
+
+        function saveServerUrl() {
+            try {
+                const input = document.getElementById('serverUrlInput');
+                const newUrl = normalizeWebSocketUrl(input.value);
+                WS_URL = newUrl;
+                localStorage.setItem('WS_URL', newUrl);
+                updateServerUrlUI();
+                showNotification(`서버 변경: ${newUrl}`, 'success');
+                connectWebSocket();
+            } catch (error) {
+                showNotification(error.message, 'error');
+            }
+        }
+
         function playSound() {
             document.getElementById('notificationSound').play().catch(() => {});
         }
@@ -1495,60 +1636,24 @@
                     document.getElementById('ipInput').value = WS_URL;
                     document.getElementById('portInput').value = match[3] || (match[1] === 'wss' ? '443' : '80');
                 }
-                document.getElementById('currentIpText').textContent = `현재: ${WS_URL}`;
+                document.getElementById('currentIpText').textContent = WS_URL ? `현재: ${WS_URL}` : '현재: 주소 미설정';
             }
         }
 
         function saveIpSettings() {
-            const address = document.getElementById('ipInput').value.trim();
-            const port = document.getElementById('portInput').value.trim();
-            
-            if (!address) {
-                showNotification('서버 주소를 입력하세요', 'error');
-                return;
-            }
-            
-            let newUrl = address;
-            if (!/^wss?:\/\//.test(newUrl)) {
-                if (!port) {
-                    showNotification('포트를 입력하세요', 'error');
-                    return;
-                }
-                if (!/^\d+$/.test(port) || parseInt(port) < 1 || parseInt(port) > 65535) {
-                    showNotification('올바른 포트 번호를 입력하세요 (1-65535)', 'error');
-                    return;
-                }
-                if (!/^[\d\.]+$/.test(address) && !/^[a-zA-Z0-9\-\.]+$/.test(address)) {
-                    showNotification('올바른 서버 주소를 입력하세요', 'error');
-                    return;
-                }
-                newUrl = `ws://${address}:${port}`;
-            }
-
-            if (!/^wss?:\/\/[a-zA-Z0-9\-\.]+(?::\d+)?(\/.*)?$/.test(newUrl) &&
-                !/^wss?:\/\/[\d\.]+(?::\d+)?(\/.*)?$/.test(newUrl)) {
-                showNotification('ws:// 또는 wss:// 주소를 입력하세요', 'error');
-                return;
-            }
-
-            // 새 URL 생성 및 저장
-            WS_URL = newUrl;
-            localStorage.setItem('WS_URL', newUrl);
-            
-            // 모달 닫기
-            toggleIpModal();
-            
-            // WebSocket 재연결
-            if (ws) {
-                ws.close();
-            }
-            
-            showNotification(`서버 변경: ${ip}:${port}`, 'success');
-            
-            // 1초 후 재연결
-            setTimeout(() => {
+            try {
+                const address = document.getElementById('ipInput').value;
+                const port = document.getElementById('portInput').value;
+                const newUrl = normalizeWebSocketUrl(address, port);
+                WS_URL = newUrl;
+                localStorage.setItem('WS_URL', newUrl);
+                updateServerUrlUI();
+                toggleIpModal();
+                showNotification(`서버 변경: ${newUrl}`, 'success');
                 connectWebSocket();
-            }, 1000);
+            } catch (error) {
+                showNotification(error.message, 'error');
+            }
         }
 
         function toggleDebug() {
