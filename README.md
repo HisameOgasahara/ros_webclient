@@ -17,10 +17,7 @@ https://hisameogasahara.github.io/ros_webclient/debug.html
 Jetson 터미널에서:
 
 ```bash
-cd ~/turtlebot3_ws
-source /opt/ros/galactic/setup.bash
-source install/setup.bash
-./scripts/start_mission_tmux.sh
+~/turtlebot3_ws/scripts/start_mission_tmux.sh
 ```
 
 tmux가 열리면 `urls` 창을 본다.
@@ -68,6 +65,5 @@ https://hisameogasahara.github.io/ros_webclient/debug.html
 Jetson에서:
 
 ```bash
-cd ~/turtlebot3_ws
-./scripts/stop_mission_tmux.sh
+~/turtlebot3_ws/scripts/stop_mission_tmux.sh
 ```
