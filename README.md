@@ -1,5 +1,9 @@
 # Robot Delivery UI for GitHub Pages
 
+Site: https://hisameogasahara.github.io/ros_webclient/
+
+Debug: https://hisameogasahara.github.io/ros_webclient/debug.html
+
 GitHub Pages에 올릴 정적 웹 UI 프로젝트다.
 
 ## 구성
