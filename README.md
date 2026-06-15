@@ -48,7 +48,21 @@ https://hisameogasahara.github.io/ros_webclient/
 3. `주문하기`를 누른다.
 4. 배송 완료 후 필요한 경우 `사용 완료`를 누르고 회수 요청을 보낸다.
 
-## 4. 연결만 확인
+## 4. 비상 조작
+
+Jetson tmux에서 `safety` 창을 연다.
+
+```text
+1) Stop bringup/nav motion
+2) Stop all mission tmux
+q) Quit this safety menu only
+```
+
+로봇 이동만 멈추려면 `1`을 누른다.
+
+미션 전체를 종료하려면 `2`를 누른다.
+
+## 5. 연결만 확인
 
 웹 UI 연결이 안 되면 debug 페이지를 연다.
 
@@ -60,7 +74,7 @@ https://hisameogasahara.github.io/ros_webclient/debug.html
 
 연결이 되면 GitHub Pages -> Cloudflare -> Jetson WebSocket 경로는 살아 있다.
 
-## 5. 종료
+## 6. 종료
 
 Jetson에서:
 
